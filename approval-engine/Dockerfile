@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application
 COPY main.py .
+COPY db.py .
 
 # Health check
 HEALTHCHECK --interval=10s --timeout=5s --retries=5 \

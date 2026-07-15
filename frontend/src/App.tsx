@@ -29,7 +29,7 @@ function App() {
 
   const checkSystemHealth = async () => {
     try {
-      await client.get('/health');
+      await client.get('/health/live');
       setSystemStatus('healthy');
     } catch {
       setSystemStatus('degraded');

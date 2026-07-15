@@ -8,10 +8,11 @@ from typing import Dict, Optional
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel
 
 from db import init_db, insert_approval, get_approval, update_approval, list_approvals
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 logging.basicConfig(
     level=logging.INFO,
@@ -197,8 +198,7 @@ async def list_all(status: Optional[str] = None):
 
 @app.get("/metrics")
 async def metrics():
-    from prometheus_client import generate_latest
-    return generate_latest()
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 if __name__ == "__main__":

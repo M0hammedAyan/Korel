@@ -9,9 +9,10 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional
 import httpx
 import logging
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Response
 from pydantic import BaseModel
 import sys
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 # Configure logging
 logging.basicConfig(
@@ -375,8 +376,7 @@ async def validate_execution(plan_id: str, command: str, parameters: Dict):
 @app.get("/metrics")
 async def metrics():
     """Prometheus metrics endpoint"""
-    from prometheus_client import generate_latest
-    return generate_latest()
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 if __name__ == "__main__":
     import uvicorn

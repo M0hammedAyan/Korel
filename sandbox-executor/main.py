@@ -12,10 +12,11 @@ from typing import Dict, Optional, List, Tuple, Any
 import re
 import httpx
 import logging
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel
 import sys
 from executor import SandboxExecutor
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 # Configure logging
 logging.basicConfig(
@@ -314,8 +315,7 @@ async def get_executions(plan_id: str):
 @app.get("/metrics")
 async def metrics():
     """Prometheus metrics endpoint"""
-    from prometheus_client import generate_latest
-    return generate_latest()
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 if __name__ == "__main__":
     import uvicorn

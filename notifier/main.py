@@ -11,11 +11,12 @@ from typing import Dict, Optional, List
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel
 import sys
 from notification.telegram import send_telegram_alert, format_telegram_message
 from backend.slack_notify import send_slack_alert
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 # Configure logging
 logging.basicConfig(
@@ -169,8 +170,7 @@ async def send_notification(notification: Notification):
 @app.get("/metrics")
 async def metrics():
     """Prometheus metrics endpoint"""
-    from prometheus_client import generate_latest
-    return generate_latest()
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 if __name__ == "__main__":
     import uvicorn
