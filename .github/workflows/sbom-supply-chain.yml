@@ -176,7 +176,16 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     strategy:
       matrix:
-        service: [backend, ai-engine, correlation-engine, frontend]
+        service:
+          - backend
+          - ai-engine
+          - correlation-engine
+          - frontend
+          - remediation-planner
+          - approval-engine
+          - sandbox-executor
+          - verification-engine
+          - notifier
     steps:
       - name: Run Trivy on image
         uses: aquasecurity/trivy-action@master

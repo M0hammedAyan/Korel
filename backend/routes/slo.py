@@ -40,14 +40,23 @@ def _mttr() -> dict:
 
 
 def _detection_latency() -> dict:
-    sql = (
-        "SELECT AVG(CAST(created_at AS REAL)) as avg_created FROM incidents"
-        if DB_TYPE == "sqlite" else
-        "SELECT EXTRACT(EPOCH FROM AVG(created_at::timestamptz - TO_TIMESTAMP(timestamp))) as avg_latency_sec FROM incidents WHERE timestamp IS NOT NULL"
-    )
     try:
+        if DB_TYPE == "sqlite":
+            # SQLite: created_at is an ISO string; timestamp is a Unix int stored in the incident.
+            # Compute latency as the difference between created_at (parsed epoch) and timestamp.
+            sql = (
+                "SELECT AVG("
+                "  CAST(strftime('%s', created_at) AS REAL) - CAST(timestamp AS REAL)"
+                ") as avg_latency_sec FROM incidents WHERE timestamp IS NOT NULL AND created_at IS NOT NULL"
+            )
+        else:
+            sql = (
+                "SELECT EXTRACT(EPOCH FROM AVG("
+                "  created_at::timestamptz - TO_TIMESTAMP(timestamp)"
+                ")) as avg_latency_sec FROM incidents WHERE timestamp IS NOT NULL"
+            )
         row = query_one(sql) or {}
-        latency = row.get("avg_latency_sec") or row.get("avg_created") or 0
+        latency = row.get("avg_latency_sec") or 0
     except Exception:
         latency = 0
     return {"avg_detection_latency_seconds": round(float(latency or 0), 1)}

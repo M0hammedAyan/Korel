@@ -1,0 +1,17 @@
+........................................................................ [ 56%]
+........................................................                 [100%]
+============================== warnings summary ===============================
+C:\Users\moham\AppData\Roaming\Python\Python311\site-packages\starlette\formparsers.py:12
+  C:\Users\moham\AppData\Roaming\Python\Python311\site-packages\starlette\formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+C:\Users\moham\AppData\Roaming\Python\Python311\site-packages\opentelemetry\instrumentation\dependencies.py:4
+  C:\Users\moham\AppData\Roaming\Python\Python311\site-packages\opentelemetry\instrumentation\dependencies.py:4: DeprecationWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html
+    from pkg_resources import (
+
+C:\Users\moham\AppData\Roaming\Python\Python311\site-packages\pydantic\_internal\_config.py:284
+  C:\Users\moham\AppData\Roaming\Python\Python311\site-packages\pydantic\_internal\_config.py:284: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.7/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+128 passed, 3 warnings in 77.41s (0:01:17)

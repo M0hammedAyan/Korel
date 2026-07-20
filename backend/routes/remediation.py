@@ -79,14 +79,15 @@ class ApprovalActionRequest(BaseModel):
 @router.get("/status", dependencies=[Depends(require_viewer)])
 async def remediation_status() -> RemediationStatus:
     """Get remediation system status"""
+    import asyncio
     try:
-        plan_count = db_count_remediation_plans()
+        plan_count = await asyncio.to_thread(db_count_remediation_plans)
     except Exception as e:
         logger.warning(f"Failed to count remediation plans: {e}")
         plan_count = 0
 
     try:
-        execution_count = len(db_list_executions(limit=1000))
+        execution_count = len(await asyncio.to_thread(db_list_executions, 1000))
     except Exception as e:
         logger.warning(f"Failed to count executions: {e}")
         execution_count = 0
@@ -142,7 +143,8 @@ async def create_remediation_plan(incident: RemediationPlanCreate):
 @router.get("/plans/{plan_id}", dependencies=[Depends(require_viewer)])
 async def get_remediation_plan(plan_id: str):
     """Get remediation plan details"""
-    plan = db_get_remediation_plan(plan_id)
+    import asyncio
+    plan = await asyncio.to_thread(db_get_remediation_plan, plan_id)
     if plan:
         return plan
     raise HTTPException(status_code=404, detail="Plan not found")
@@ -197,12 +199,27 @@ async def execute_remediation(plan_id: str, approval_id: str):
     
     try:
         async with httpx.AsyncClient(timeout=600) as client:
-            # Check approval status
+            # Check approval status AND expiry
             approval_check = await client.get(
                 f"{APPROVAL_ENGINE_URL}/status/{approval_id}"
             )
-            if approval_check.status_code != 200 or approval_check.json().get("status") != "approved":
+            if approval_check.status_code != 200:
+                raise HTTPException(status_code=403, detail="Could not verify approval status")
+            approval_data = approval_check.json()
+            if approval_data.get("status") != "approved":
                 raise HTTPException(status_code=403, detail="Plan not approved")
+            # Enforce expiry at execution time
+            expires_at_str = approval_data.get("expires_at")
+            if expires_at_str:
+                try:
+                    from datetime import datetime, timezone
+                    expires_at = datetime.fromisoformat(expires_at_str)
+                    if expires_at < datetime.now(timezone.utc):
+                        raise HTTPException(status_code=403, detail="Approval has expired")
+                except HTTPException:
+                    raise
+                except Exception:
+                    pass  # malformed date — let it through rather than block
 
             # Collect pre-execution baseline metrics
             pre_metrics = await _fetch_pre_metrics(
@@ -356,8 +373,9 @@ async def send_remediation_notification(incident_id: str, severity: str, root_ca
 @router.get("/plans", dependencies=[Depends(require_viewer)])
 async def list_remediation_plans(limit: int = 100):
     """List all remediation plans"""
+    import asyncio
     try:
-        plans_list = db_list_remediation_plans(limit=limit)
+        plans_list = await asyncio.to_thread(db_list_remediation_plans, limit)
     except Exception as e:
         logger.warning(f"Failed to list remediation plans: {e}")
         plans_list = []
@@ -371,7 +389,8 @@ async def list_remediation_plans(limit: int = 100):
 @router.get("/executions", dependencies=[Depends(require_viewer)])
 async def list_executions_route(limit: int = 100):
     """List all execution records"""
-    executions_list = db_list_executions(limit=limit)
+    import asyncio
+    executions_list = await asyncio.to_thread(db_list_executions, limit)
     return {
         "count": len(executions_list),
         "executions": executions_list
@@ -443,12 +462,12 @@ async def approve_approval(approval_id: str, payload: ApprovalActionRequest):
                 write_audit("remediation.approved", payload.approver_email or "dashboard", approval_id,
                             {"reason": payload.reason})
                 return result
+            raise HTTPException(status_code=response.status_code, detail="Approval engine rejected the request")
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.debug(f"Approval engine unavailable for approve {approval_id}: {e}")
-
-    write_audit("remediation.approved", payload.approver_email or "dashboard", approval_id,
-                {"source": "backend-fallback"})
-    return {"status": "approved", "approval_id": approval_id, "source": "backend-fallback"}
+        logger.error(f"Approval engine unavailable for approve {approval_id}: {e}")
+        raise HTTPException(status_code=503, detail="Approval engine unavailable — cannot approve")
 
 
 @router.patch("/approvals/{approval_id}/reject", dependencies=[Depends(require_operator)])
@@ -467,9 +486,9 @@ async def reject_approval(approval_id: str, payload: ApprovalActionRequest):
                 write_audit("remediation.rejected", payload.approver_email or "dashboard", approval_id,
                             {"reason": payload.reason})
                 return result
+            raise HTTPException(status_code=response.status_code, detail="Approval engine rejected the request")
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.debug(f"Approval engine unavailable for reject {approval_id}: {e}")
-
-    write_audit("remediation.rejected", payload.approver_email or "dashboard", approval_id,
-                {"source": "backend-fallback"})
-    return {"status": "rejected", "approval_id": approval_id, "source": "backend-fallback"}
+        logger.error(f"Approval engine unavailable for reject {approval_id}: {e}")
+        raise HTTPException(status_code=503, detail="Approval engine unavailable — cannot process rejection")

@@ -291,6 +291,33 @@ async def create_remediation_plan(request: RemediationRequest):
         f"Reasoning: {strategy['reasoning']}\n\n"
         f"Parameters: {json.dumps(complete_params)}"
     )
+
+    # Enrich reasoning with AI engine analysis
+    try:
+        async with httpx.AsyncClient(timeout=15) as ai_client:
+            ai_resp = await ai_client.post(
+                f"{AI_ENGINE_URL}/analyze",
+                json={
+                    "incident_id": request.incident_id,
+                    "severity": request.severity,
+                    "root_cause": request.root_cause,
+                    "summary": strategy["reasoning"],
+                    "affected_pods": request.affected_pods,
+                    "primary_metric": request.primary_metric,
+                    "confidence": strategy["confidence"],
+                    "namespace": namespace,
+                    "z_score": request.z_score,
+                    "value": 0.0,
+                },
+            )
+            if ai_resp.status_code == 200:
+                ai_data = ai_resp.json()
+                ai_explanation = ai_data.get("explanation", "")
+                model_used = ai_data.get("model_used", "")
+                if ai_explanation:
+                    ai_reasoning += f"\n\nAI Analysis ({model_used}):\n{ai_explanation}"
+    except Exception as e:
+        logger.debug(f"AI engine enrichment skipped: {e}")
     
     plan = RemediationPlan(
         plan_id=plan_id,
@@ -380,4 +407,8 @@ async def metrics():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8007, workers=2)
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+    from shared.mtls import get_uvicorn_ssl_kwargs
+    ssl_kwargs = get_uvicorn_ssl_kwargs()
+    uvicorn.run(app, host="0.0.0.0", port=8007, workers=2, **ssl_kwargs)

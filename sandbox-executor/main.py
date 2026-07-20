@@ -319,4 +319,8 @@ async def metrics():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8009)
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+    from shared.mtls import get_uvicorn_ssl_kwargs
+    ssl_kwargs = get_uvicorn_ssl_kwargs()
+    uvicorn.run("main:app", host="0.0.0.0", port=8009, **ssl_kwargs)

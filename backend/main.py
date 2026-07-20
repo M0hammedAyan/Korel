@@ -60,6 +60,7 @@ from backend.middleware import RequestIDMiddleware, ErrorResponseMiddleware, Aud
 from backend.errors import standard_response
 from backend.resilience import CircuitBreaker, call_with_circuit
 from backend.rate_limit_redis import check_rate_limit, connect_redis
+from shared.mtls import is_mtls_enabled, get_mtls_client, get_uvicorn_ssl_kwargs
 
 try:
     from opentelemetry import trace
@@ -267,7 +268,7 @@ app.include_router(sla_guarantees_router)
 
 async def _dependency_health(url: str) -> bool:
     try:
-        async with httpx.AsyncClient(timeout=2.0) as client:
+        async with get_mtls_client(timeout=2.0) as client:
             response = await client.get(url)
             return response.status_code == 200
     except Exception:
@@ -355,7 +356,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
     if not DISABLE_AUTH:
         api_key = websocket.query_params.get("api_key") or websocket.headers.get("X-API-Key")
-        auth_result = authenticate_websocket(api_key)
+        auth_result = await authenticate_websocket(api_key)
         if auth_result is None:
             await websocket.close(code=4401)
             return
@@ -386,3 +387,9 @@ async def websocket_endpoint(websocket: WebSocket):
         logger.error(f"WebSocket error: {e}")
         manager.disconnect(websocket)
         WEBSOCKET_CLIENTS.set(manager.get_connection_count())
+
+
+if __name__ == "__main__":
+    import uvicorn
+    ssl_kwargs = get_uvicorn_ssl_kwargs()
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, **ssl_kwargs)

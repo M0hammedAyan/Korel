@@ -29,7 +29,10 @@ class AuditAccessMiddleware(BaseHTTPMiddleware):
         if response.status_code >= 400:
             try:
                 from backend.audit import write_audit
-                actor = request.headers.get("X-API-Key", "anonymous")[:16]
+                import hashlib
+                raw_key = request.headers.get("X-API-Key", "")
+                actor = ("anon" if not raw_key
+                         else hashlib.sha256(raw_key.encode()).hexdigest()[:12])
                 write_audit(
                     "api.access_denied" if response.status_code in (401, 403) else "api.error",
                     actor,

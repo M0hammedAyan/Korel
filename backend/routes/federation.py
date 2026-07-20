@@ -19,7 +19,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from backend.rbac import require_admin, require_viewer
+from backend.rbac import require_admin, require_viewer, require_operator
 from backend.audit import write_audit
 from backend.database import execute, query_all, query_one, DB_TYPE
 
@@ -160,7 +160,7 @@ def update_cluster(cluster_id: str, body: ClusterUpdate):
     return {"status": "updated", "cluster_id": cluster_id}
 
 
-@router.post("/clusters/{cluster_id}/heartbeat")
+@router.post("/clusters/{cluster_id}/heartbeat", dependencies=[Depends(require_operator)])
 def cluster_heartbeat(cluster_id: str, body: ClusterHealthReport):
     """
     Receive a heartbeat from a remote cluster.
@@ -207,9 +207,25 @@ def federation_overview():
     sql = "SELECT SUM(node_count) as nodes, SUM(pod_count) as pods, SUM(anomaly_count_24h) as anomalies, SUM(incident_count_24h) as incidents FROM federated_clusters WHERE is_active=1"
     metrics = query_one(sql, ())
 
+    # Mark stale clusters (no heartbeat in 5 minutes)
+    stale_threshold = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    stale_sql = (
+        "SELECT COUNT(*) as stale FROM federated_clusters WHERE is_active=1 AND last_heartbeat IS NOT NULL "
+        "AND last_heartbeat < datetime('now', '-5 minutes')"
+        if DB_TYPE == "sqlite" else
+        "SELECT COUNT(*) as stale FROM federated_clusters WHERE is_active=1 AND last_heartbeat IS NOT NULL "
+        "AND last_heartbeat < NOW() - INTERVAL '5 minutes'"
+    )
+    try:
+        stale_row = query_one(stale_sql, ()) or {}
+        stale_count = stale_row.get("stale", 0)
+    except Exception:
+        stale_count = 0
+
     return {
         "clusters_total": totals.get("total", 0) if totals else 0,
         "clusters_active": totals.get("active", 0) if totals else 0,
+        "clusters_stale": stale_count,
         "total_nodes": metrics.get("nodes", 0) if metrics else 0,
         "total_pods": metrics.get("pods", 0) if metrics else 0,
         "total_anomalies_24h": metrics.get("anomalies", 0) if metrics else 0,

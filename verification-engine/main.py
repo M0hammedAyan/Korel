@@ -16,6 +16,8 @@ import sys
 import statistics
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -32,6 +34,7 @@ app = FastAPI(
 
 # ── Configuration ──────────────────────────────────────────────────
 BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
+BACKEND_API_KEY = os.getenv("API_KEY_OPERATOR", os.getenv("API_KEY", ""))
 PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
 VERIFICATION_WAIT_SECONDS = int(os.getenv("VERIFICATION_WAIT_SECONDS", "60"))
 SUCCESS_THRESHOLD = float(os.getenv("VERIFICATION_SUCCESS_THRESHOLD", "0.7"))
@@ -203,12 +206,25 @@ async def verify_remediation(request: VerificationRequest):
         verification_details=details.strip(),
         duration_ms=int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
     )
-    
-    # Store result
+
+    # Store result in-memory
     verification_store[verification_id] = result.dict()
-    
+
+    # Persist to backend DB
+    try:
+        from shared.mtls import get_mtls_client
+        headers = {"X-API-Key": BACKEND_API_KEY} if BACKEND_API_KEY else {}
+        async with get_mtls_client(timeout=10) as client:
+            await client.post(
+                f"{BACKEND_URL}/remediation/verifications",
+                json=result.dict(),
+                headers=headers,
+            )
+    except Exception as e:
+        logger.warning(f"Failed to persist verification to backend: {e}")
+
     logger.info(f"Verification complete: {verification_id} - status={result.verification_status}")
-    
+
     return result
 
 # ── Get Verification Result ──────────────────────────────────────
@@ -228,4 +244,8 @@ async def metrics():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8010, workers=2)
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+    from shared.mtls import get_uvicorn_ssl_kwargs
+    ssl_kwargs = get_uvicorn_ssl_kwargs()
+    uvicorn.run(app, host="0.0.0.0", port=8010, workers=2, **ssl_kwargs)

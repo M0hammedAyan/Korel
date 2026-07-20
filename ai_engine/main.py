@@ -11,6 +11,7 @@ import json
 import asyncio
 import smtplib
 import httpx
+from collections import deque
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime, timezone
@@ -89,7 +90,7 @@ class MetricsMiddleware(BaseHTTPMiddleware):
 app.add_middleware(MetricsMiddleware)
 
 # ── In-memory activity log (persisted to SQLite via backend) ─────────
-activity_log: list[dict] = []
+activity_log: deque = deque(maxlen=1000)
 ws_clients: list[WebSocket] = []
 
 # ── Severity routing ─────────────────────────────────────────────────
@@ -381,7 +382,10 @@ async def _store_fix_in_backend(incident_id: str, fix_type: str, fix_description
                                  applied_by: str, success: bool, kubectl_command: str = ""):
     """Store fix history by calling backend API"""
     try:
-        async with httpx.AsyncClient(timeout=5) as client:
+        import sys
+        sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+        from shared.mtls import get_mtls_client
+        async with get_mtls_client(timeout=5) as client:
             await client.post(
                 f"{BACKEND_URL}/fixes/record",
                 json={
@@ -525,7 +529,7 @@ async def chat(req: ChatRequest):
 # ── Activity log endpoint ────────────────────────────────────────────
 @app.get("/activity")
 def get_activity(limit: int = 50):
-    return activity_log[-limit:]
+    return list(activity_log)[-limit:]
 
 
 # ── Health ───────────────────────────────────────────────────────────
@@ -557,7 +561,7 @@ async def ai_ws(websocket: WebSocket):
     await websocket.accept()
     ws_clients.append(websocket)
     # Send existing log on connect
-    for entry in activity_log[-20:]:
+    for entry in list(activity_log)[-20:]:
         await websocket.send_json({"type": "ai_activity", "payload": entry})
     try:
         while True:
@@ -565,3 +569,12 @@ async def ai_ws(websocket: WebSocket):
     except WebSocketDisconnect:
         if websocket in ws_clients:
             ws_clients.remove(websocket)
+
+
+if __name__ == "__main__":
+    import uvicorn
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+    from shared.mtls import get_uvicorn_ssl_kwargs
+    ssl_kwargs = get_uvicorn_ssl_kwargs()
+    uvicorn.run("main:app", host="0.0.0.0", port=8006, **ssl_kwargs)

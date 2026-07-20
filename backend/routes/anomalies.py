@@ -7,6 +7,7 @@ except ImportError:
 from backend.websocket.manager import manager
 from backend.services.processor import process_anomaly, anomalies
 from backend.rbac import require_viewer, require_operator
+from backend.tenancy import tenant_context_dep, TenantContext, get_tenant_namespaces
 import logging
 
 logger = logging.getLogger(__name__)
@@ -55,10 +56,14 @@ async def receive_anomaly(payload: AnomalyPayload):
 
 
 @router.get("/anomalies", dependencies=[Depends(require_viewer)])
-def list_anomalies(limit: int = 100):
-    """Get recent anomalies"""
+def list_anomalies(limit: int = 100, tc: TenantContext = Depends(tenant_context_dep)):
+    """Get recent anomalies — filtered to the caller's tenant namespaces."""
     if limit <= 0:
         raise HTTPException(status_code=400, detail="Limit must be positive")
     if limit > 1000:
-        limit = 1000  # Cap at 1000 for performance
-    return anomalies[-limit:]
+        limit = 1000
+    if tc.is_super_admin:
+        return list(anomalies)[-limit:]
+    allowed_ns = set(get_tenant_namespaces(tc.tenant_id))
+    filtered = [a for a in anomalies if a.get("namespace") in allowed_ns]
+    return filtered[-limit:]

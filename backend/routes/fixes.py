@@ -28,7 +28,7 @@ def get_fix_history(limit: int = 100, applied_by: Optional[str] = None):
     if limit > 500:
         limit = 500
     
-    result = fix_history[-limit:]
+    result = list(fix_history)[-limit:]
     
     # Filter by applied_by if specified
     if applied_by:

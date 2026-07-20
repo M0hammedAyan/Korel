@@ -21,6 +21,7 @@ __pycache__/
 # Database
 data/
 *.db
+approval-engine/_test.db
 
 # Minikube / Kubernetes local state
 .minikube/
@@ -35,3 +36,10 @@ kubeconfig
 .idea/
 *.swp
 .aider*
+
+# ============================================================================
+# Local AI Engineering Operating System
+# Never commit AI prompts, memory, workflows or local automation
+# ============================================================================
+
+.ai/

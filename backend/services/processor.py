@@ -4,7 +4,7 @@ import uuid
 import httpx
 import json
 from datetime import datetime, timezone
-from typing import List, Dict
+from typing import Dict
 from contextlib import nullcontext
 from tenacity import retry, stop_after_attempt, wait_exponential
 import pybreaker
@@ -19,17 +19,21 @@ try:
 except Exception:
     TRACER = None
 
+from collections import deque
+
 CORRELATION_URL = os.getenv("CORRELATION_ENGINE_URL", "http://localhost:8005")
 AI_ENGINE_URL   = os.getenv("AI_ENGINE_URL", "http://localhost:8006")
 
 CORRELATION_BREAKER = pybreaker.CircuitBreaker(fail_max=5, reset_timeout=30)
 AI_BREAKER = pybreaker.CircuitBreaker(fail_max=5, reset_timeout=30)
 
-# ── In-memory cache (fast reads) ────────────────────────────────────
-anomalies: List[dict] = []
-incidents: List[dict] = []
-correlations: List[dict] = []
-fix_history: List[dict] = []
+_MAX_LIST = 1000
+
+# ── In-memory cache (fast reads, bounded) ───────────────────────────
+anomalies: deque = deque(maxlen=_MAX_LIST)
+incidents: deque = deque(maxlen=_MAX_LIST)
+correlations: deque = deque(maxlen=_MAX_LIST)
+fix_history: deque = deque(maxlen=_MAX_LIST)
 graph_data: Dict = {"nodes": [], "edges": []}
 
 # Load existing data from DB on startup
@@ -288,21 +292,28 @@ def _handle_correlation_result(result: dict):
     affected = result.get("affected_pods", [])
     root = result.get("root_cause_pod")
 
+    _node_sql = (
+        "INSERT OR IGNORE INTO graph_nodes VALUES (?,?,?)"
+        if os.getenv("DB_TYPE", "sqlite") != "postgres"
+        else "INSERT INTO graph_nodes VALUES (%s,%s,%s) ON CONFLICT DO NOTHING"
+    )
+    _edge_sql = (
+        "INSERT OR IGNORE INTO graph_edges VALUES (?,?)"
+        if os.getenv("DB_TYPE", "sqlite") != "postgres"
+        else "INSERT INTO graph_edges VALUES (%s,%s) ON CONFLICT DO NOTHING"
+    )
+
     for pod in affected:
         if not any(n["id"] == pod for n in graph_data["nodes"]):
             graph_data["nodes"].append({"id": pod, "label": pod, "status": "problem"})
             try:
-                conn = _get_db()
-                conn.execute("INSERT OR IGNORE INTO graph_nodes VALUES (?,?,?)", (pod, pod, "problem"))
-                conn.commit(); conn.close()
+                execute(_node_sql, (pod, pod, "problem"))
             except Exception: pass
 
     if root and not any(n["id"] == root for n in graph_data["nodes"]):
         graph_data["nodes"].append({"id": root, "label": root, "status": "problem"})
         try:
-            conn = _get_db()
-            conn.execute("INSERT OR IGNORE INTO graph_nodes VALUES (?,?,?)", (root, root, "problem"))
-            conn.commit(); conn.close()
+            execute(_node_sql, (root, root, "problem"))
         except Exception: pass
 
     for pod in affected:
@@ -311,9 +322,7 @@ def _handle_correlation_result(result: dict):
             if edge not in graph_data["edges"]:
                 graph_data["edges"].append(edge)
                 try:
-                    conn = _get_db()
-                    conn.execute("INSERT OR IGNORE INTO graph_edges VALUES (?,?)", (root, pod))
-                    conn.commit(); conn.close()
+                    execute(_edge_sql, (root, pod))
                 except Exception: pass
 
     if root and len(affected) == 1 and len(graph_data["nodes"]) > 1:
@@ -323,9 +332,7 @@ def _handle_correlation_result(result: dict):
                 if edge not in graph_data["edges"]:
                     graph_data["edges"].append(edge)
                     try:
-                        conn = _get_db()
-                        conn.execute("INSERT OR IGNORE INTO graph_edges VALUES (?,?)", (root, existing["id"]))
-                        conn.commit(); conn.close()
+                        execute(_edge_sql, (root, existing["id"]))
                     except Exception: pass
                 break
 

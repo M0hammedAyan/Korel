@@ -84,3 +84,70 @@ def get_tenant_namespaces(tenant_id: str) -> list:
     sql = f"SELECT namespace FROM tenant_namespaces WHERE tenant_id={_ph()}"
     rows = query_all(sql, (tenant_id,))
     return [r["namespace"] for r in rows]
+
+
+def _get_username_from_request(
+    api_key: Optional[str] = None,
+    authorization: Optional[str] = None,
+) -> str:
+    """Resolve username from API key or JWT for tenant lookup."""
+    import hashlib
+    import hmac
+    import os
+    from backend.auth import DISABLE_AUTH, JWT_SECRET, JWT_ALGORITHM
+
+    if DISABLE_AUTH:
+        return "env:admin"
+
+    if api_key:
+        # Check env-var role keys — these are super-admin
+        for env_var in ("API_KEY_ADMIN", "API_KEY_OPERATOR", "API_KEY_VIEWER", "API_KEY"):
+            key = os.getenv(env_var)
+            if key and hmac.compare_digest(api_key, key):
+                return f"env:{env_var.lower()}"
+        # User-managed key — look up username
+        key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+        ph = "%s" if DB_TYPE == "postgres" else "?"
+        row = query_one(f"SELECT username FROM users WHERE api_key_hash={ph}", (key_hash,))
+        if row:
+            return row["username"]
+
+    if authorization:
+        try:
+            import jwt as _jwt
+            scheme, token = authorization.split(maxsplit=1)
+            if scheme.lower() == "bearer":
+                payload = _jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+                return payload.get("sub", "unknown")
+        except Exception:
+            pass
+
+    return "unknown"
+
+
+def get_tenant_context(
+    api_key: Optional[str] = Depends(
+        lambda api_key=None: api_key  # placeholder; real injection below
+    ),
+) -> TenantContext:
+    """FastAPI dependency — resolves TenantContext from the request credentials."""
+    # This is called via get_tenant_context_dep below which has proper Header injection.
+    return TenantContext(tenant_id=None, tenant_name=None, is_super_admin=True)
+
+
+def make_tenant_dep():
+    """Return a FastAPI dependency that resolves TenantContext from request headers."""
+    from fastapi import Header
+
+    def _dep(
+        api_key: Optional[str] = Header(None, alias="X-API-Key"),
+        authorization: Optional[str] = Header(None, alias="Authorization"),
+    ) -> TenantContext:
+        username = _get_username_from_request(api_key, authorization)
+        return resolve_tenant_from_user(username)
+
+    return _dep
+
+
+# Singleton dependency — import and use this in routes
+tenant_context_dep = make_tenant_dep()

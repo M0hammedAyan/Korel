@@ -90,7 +90,7 @@ class IsolationForestDetector:
         annotated: KoralEvent = {
             **event,
             "z_score": round(pseudo_z, 6),   # preserved field name for compat
-            "is_anomaly": is_anomaly,
+            "is_anomaly": bool(is_anomaly),   # cast numpy bool_ → Python bool
             "window_size": self.window_size,
         }
         validate_event(annotated, final=True)

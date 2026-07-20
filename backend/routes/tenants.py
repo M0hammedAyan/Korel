@@ -87,17 +87,26 @@ def create_tenant(body: TenantCreate):
 def list_tenants(active_only: bool = True):
     """List all tenants."""
     if active_only:
-        sql = "SELECT * FROM tenants WHERE is_active=1 ORDER BY created_at DESC"
-        rows = query_all(sql)
+        rows = query_all("SELECT * FROM tenants WHERE is_active=1 ORDER BY created_at DESC")
     else:
-        sql = "SELECT * FROM tenants ORDER BY created_at DESC"
-        rows = query_all(sql)
+        rows = query_all("SELECT * FROM tenants ORDER BY created_at DESC")
 
-    # Attach namespaces to each tenant
+    if not rows:
+        return {"tenants": [], "count": 0}
+
+    # Single query for all namespaces, then group in Python
+    tenant_ids = [row["id"] for row in rows]
+    ph = ", ".join([_ph() for _ in tenant_ids])
+    ns_rows = query_all(
+        f"SELECT tenant_id, namespace FROM tenant_namespaces WHERE tenant_id IN ({ph})",
+        tuple(tenant_ids),
+    )
+    ns_map: dict = {}
+    for r in ns_rows:
+        ns_map.setdefault(r["tenant_id"], []).append(r["namespace"])
+
     for row in rows:
-        ns_sql = f"SELECT namespace FROM tenant_namespaces WHERE tenant_id={_ph()}"
-        ns_rows = query_all(ns_sql, (row["id"],))
-        row["namespaces"] = [r["namespace"] for r in ns_rows]
+        row["namespaces"] = ns_map.get(row["id"], [])
 
     return {"tenants": rows, "count": len(rows)}
 

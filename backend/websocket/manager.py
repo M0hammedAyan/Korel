@@ -115,16 +115,17 @@ class ConnectionManager:
         self.active.clear()
 
 
-def authenticate_websocket(api_key: Optional[str]) -> Optional[tuple]:
+async def authenticate_websocket(api_key: Optional[str]) -> Optional[tuple]:
     """
     Authenticate a WebSocket connection using the same RBAC logic as HTTP routes.
+    Async — DB lookup is wrapped in asyncio.to_thread to avoid blocking the event loop.
 
     Returns (role: WSRole, username: str) or None if authentication fails.
     """
     if not api_key:
         return None
 
-    # Check env-var role keys first
+    # Check env-var role keys first (no I/O — safe to do synchronously)
     role_keys = {
         WSRole.ADMIN: os.getenv("API_KEY_ADMIN"),
         WSRole.OPERATOR: os.getenv("API_KEY_OPERATOR"),
@@ -139,33 +140,36 @@ def authenticate_websocket(api_key: Optional[str]) -> Optional[tuple]:
     if legacy_key and hmac.compare_digest(api_key, legacy_key):
         return (WSRole.OPERATOR, "env:legacy")
 
-    # Check user-managed keys in the database
-    try:
-        from backend.database import query_one, DB_TYPE
-        key_hash = hashlib.sha256(api_key.encode()).hexdigest()
-        placeholder = "%s" if DB_TYPE == "postgres" else "?"
-        sql = f"SELECT username, role, is_active, key_expires_at FROM users WHERE api_key_hash={placeholder}"
-        user = query_one(sql, (key_hash,))
-        if not user:
+    # Check user-managed keys in the database — wrapped in to_thread to avoid blocking
+    import asyncio
+
+    def _db_lookup() -> Optional[tuple]:
+        try:
+            from backend.database import query_one, DB_TYPE
+            key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+            placeholder = "%s" if DB_TYPE == "postgres" else "?"
+            sql = f"SELECT username, role, is_active, key_expires_at FROM users WHERE api_key_hash={placeholder}"
+            user = query_one(sql, (key_hash,))
+            if not user:
+                return None
+            if not user.get("is_active", True):
+                return None
+            expires_at = user.get("key_expires_at")
+            if expires_at:
+                try:
+                    expiry = datetime.fromisoformat(expires_at)
+                    if expiry < datetime.now(timezone.utc):
+                        return None
+                except (ValueError, TypeError):
+                    pass
+            role_str = user.get("role", "viewer").upper()
+            ws_role = WSRole[role_str]
+            return (ws_role, user["username"])
+        except Exception as e:
+            logger.warning(f"[ws] user key lookup failed: {e}")
             return None
-        if not user.get("is_active", True):
-            return None
-        # Check expiry
-        expires_at = user.get("key_expires_at")
-        if expires_at:
-            try:
-                from datetime import datetime, timezone
-                expiry = datetime.fromisoformat(expires_at)
-                if expiry < datetime.now(timezone.utc):
-                    return None
-            except (ValueError, TypeError):
-                pass
-        role_str = user.get("role", "viewer").upper()
-        ws_role = WSRole[role_str]
-        return (ws_role, user["username"])
-    except Exception as e:
-        logger.warning(f"[ws] user key lookup failed: {e}")
-        return None
+
+    return await asyncio.to_thread(_db_lookup)
 
 
 manager = ConnectionManager()

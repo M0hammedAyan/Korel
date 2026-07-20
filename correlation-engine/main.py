@@ -103,15 +103,20 @@ def correlate(anomaly: AnomalyIn):
     }
 
     try:
-        event = validate_event(raw_event, final=True)
-    except ValidationError as e:
-        # Fallback: still return a valid incident shape
-        return _fallback_incident(anomaly, metric, str(e))
+        # Run Isolation Forest scoring — updates z_score and is_anomaly in-place
+        event = _detector.detect(raw_event)
+    except (ValidationError, Exception) as e:
+        # Fallback: validate without IF scoring
+        try:
+            event = validate_event(raw_event, final=True)
+        except ValidationError:
+            return _fallback_incident(anomaly, metric, str(e))
 
     incident = build_incident([event])
 
-    # Compute confidence from z_score (0–1 scale)
-    confidence = round(min(abs(anomaly.z_score) / 5.0, 1.0), 2)
+    # Use IF-scored z_score for confidence
+    scored_z = event.get("z_score", anomaly.z_score)
+    confidence = round(min(abs(scored_z) / 5.0, 1.0), 2)
 
     return {
         "incident_id": incident["incident_id"],
@@ -126,7 +131,7 @@ def correlate(anomaly: AnomalyIn):
         "pod_A": anomaly.pod,
         "pod_B": anomaly.pod,
         "metric": metric,
-        "correlation": anomaly.z_score,
+        "correlation": scored_z,
         "root_cause_pod": anomaly.pod,
         "created_at": incident["timestamp"],
         "evidence_count": incident["metadata"]["event_count"],
@@ -189,3 +194,11 @@ def correlate_batch_endpoint(body: BatchAnomalyIn):
 
     incidents = correlate_batch(scored_events, window_seconds=body.window_seconds)
     return {"incidents": incidents, "count": len(incidents)}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+    from shared.mtls import get_uvicorn_ssl_kwargs
+    ssl_kwargs = get_uvicorn_ssl_kwargs()
+    uvicorn.run("main:app", host="0.0.0.0", port=8005, **ssl_kwargs)

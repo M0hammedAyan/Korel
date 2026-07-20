@@ -1,0 +1,74 @@
+{
+  "aios_version": "1.0.0",
+  "project": {
+    "name": "KORAL",
+    "type": "enterprise",
+    "engineering_mode": "production",
+    "tech_stack": {
+      "backend": ["python", "fastapi", "sqlalchemy"],
+      "frontend": ["typescript", "react", "vite"],
+      "database": ["postgresql", "redis"],
+      "infrastructure": ["docker", "kubernetes", "helm"],
+      "ci_cd": ["github-actions"],
+      "monitoring": ["prometheus", "grafana"],
+      "ai_ml": ["scikit-learn", "openai-gpt4", "anthropic-claude"],
+      "security": ["mtls", "cosign", "trivy", "jwt", "rbac"],
+      "testing": ["pytest", "locust"]
+    },
+    "graphify_location": "graphify-out/",
+    "documentation_location": "docs/",
+    "readme": "README.md",
+    "claude": "CLAUDE.md"
+  },
+  "agents": {
+    "always_active": [
+      "executive-director", "program-manager", "technical-architect",
+      "repository-intelligence", "graph-intelligence", "context-manager", "memory-manager"
+    ],
+    "enabled": [
+      "backend-lead", "api-engineer", "database-engineer", "auth-engineer",
+      "frontend-lead", "ui-engineer",
+      "devops-engineer", "docker-engineer", "kubernetes-engineer", "cicd-engineer",
+      "security-engineer", "compliance-engineer", "privacy-engineer",
+      "reviewer", "qa-engineer", "test-automation-engineer", "performance-engineer",
+      "release-manager", "deployment-manager",
+      "documentation-engineer", "technical-writer"
+    ],
+    "disabled": [
+      "ux-engineer", "accessibility-engineer",
+      "ai-engineer", "prompt-engineer", "llm-engineer",
+      "ml-engineer", "data-engineer", "feature-engineering-specialist", "model-evaluation-specialist",
+      "vision-engineer", "image-processing-engineer", "face-recognition-engineer", "video-processing-engineer",
+      "research-writer"
+    ]
+  },
+  "quality_gates": {
+    "implementation": true,
+    "testing": true,
+    "documentation": true,
+    "security": true,
+    "performance": true,
+    "coverage_threshold": 80,
+    "lint_required": true,
+    "type_check_required": true
+  },
+  "workflows": {
+    "enabled": [
+      "feature-development", "bug-fixing", "planning", "task-assignment",
+      "agent-communication", "architecture-review", "security-review",
+      "performance-review", "testing", "release", "refactoring", "documentation"
+    ]
+  },
+  "bootstrap": {
+    "graphify_first": true,
+    "memory_init": true,
+    "agent_activation": "profile-based",
+    "project_isolation": true
+  },
+  "commands": {
+    "test": "cd backend && python -m pytest tests/ -v",
+    "lint": "cd backend && ruff check . && cd ../frontend && npx tsc --noEmit",
+    "build": "cd frontend && npm run build && cd ../backend && docker build -t koral-backend .",
+    "deploy": "helm upgrade --install koral ./helm/koral --values ./helm/koral/values-prod.yaml"
+  }
+}
