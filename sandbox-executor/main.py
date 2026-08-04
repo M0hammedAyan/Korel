@@ -109,9 +109,9 @@ APPROVED_COMMANDS: Dict[str, Dict[str, Any]] = {
     "trigger_debug_logs": {
         "params": {"pod_name": "k8s_name", "namespace": "k8s_name"},
         "build_argv": lambda p: [
-            "kubectl", "exec", p["pod_name"], "-n", p["namespace"], "--", "sh", "-lc", "export LOG_LEVEL=DEBUG; echo OK"
+            "kubectl", "exec", p["pod_name"], "-n", p["namespace"], "--", "env", "LOG_LEVEL=DEBUG"
         ],
-        # NOTE: this still uses a shell inside the pod, not on the executor node. This is intentionally limited.
+        # NOTE: this uses kubectl exec to set an env var entry, bypasses shell invocation.
     },
 }
 

@@ -62,6 +62,29 @@ from backend.resilience import CircuitBreaker, call_with_circuit
 from backend.rate_limit_redis import check_rate_limit, connect_redis
 from shared.mtls import is_mtls_enabled, get_mtls_client, get_uvicorn_ssl_kwargs
 
+
+# ── Security Headers Middleware ────────────────────────────────────
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """
+    Inject OWASP-recommended security response headers on every HTTP response.
+    Adds defense-in-depth against clickjacking, MIME sniffing, and information disclosure.
+    """
+    SECURITY_HEADERS = {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "1; mode=block",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
+        "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+        "Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'",
+    }
+
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        for header, value in self.SECURITY_HEADERS.items():
+            response.headers[header] = value
+        return response
+
 try:
     from opentelemetry import trace
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
@@ -198,6 +221,7 @@ class MetricsMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(MetricsMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(AuditAccessMiddleware)
 app.add_middleware(ErrorResponseMiddleware)

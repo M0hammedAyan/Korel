@@ -150,6 +150,24 @@ async def send_slack_notification(notification: Notification) -> bool:
         logger.error(f"Failed to send Slack: {e}")
         return False
 
+# ── Telegram Test ───────────────────────────────────────────────
+@app.post("/test/telegram")
+async def test_telegram():
+    """Send a test message to verify Telegram is configured correctly."""
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        raise HTTPException(status_code=400, detail="TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set")
+    if DISABLE_TELEGRAM:
+        raise HTTPException(status_code=400, detail="DISABLE_TELEGRAM=true — set it to false and restart")
+    message = (
+        "✅ *KORAL Alert Test*\n\n"
+        "This is a test message from the KORAL notifier.\n"
+        f"_Sent at: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}_"
+    )
+    ok = await send_telegram_alert(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, message)
+    if not ok:
+        raise HTTPException(status_code=502, detail="Telegram API call failed — check notifier logs")
+    return {"status": "sent", "chat_id": TELEGRAM_CHAT_ID}
+
 # ── Send Notification ────────────────────────────────────────────
 @app.post("/notify")
 async def send_notification(notification: Notification):

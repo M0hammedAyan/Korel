@@ -23,6 +23,7 @@ from collections import deque
 
 CORRELATION_URL = os.getenv("CORRELATION_ENGINE_URL", "http://localhost:8005")
 AI_ENGINE_URL   = os.getenv("AI_ENGINE_URL", "http://localhost:8006")
+NOTIFIER_URL    = os.getenv("NOTIFIER_URL", "http://notifier:8011")
 
 CORRELATION_BREAKER = pybreaker.CircuitBreaker(fail_max=5, reset_timeout=30)
 AI_BREAKER = pybreaker.CircuitBreaker(fail_max=5, reset_timeout=30)
@@ -180,15 +181,35 @@ async def _call_ai_engine(incident: dict, anomaly: dict, broadcast_fn):
             _update_incident_ai(incident)
             # Broadcast updated incident with AI data
             await broadcast_fn({"type": "incident_ai", "payload": incident})
+            asyncio.create_task(_call_notifier(incident))
         else:
             _apply_rule_engine_fallback(incident, anomaly)
             _update_incident_ai(incident)
             await broadcast_fn({"type": "incident_ai", "payload": incident})
+            asyncio.create_task(_call_notifier(incident))
     except Exception as e:
         print(f"[processor] AI engine unreachable: {e}")
         _apply_rule_engine_fallback(incident, anomaly)
         _update_incident_ai(incident)
         await broadcast_fn({"type": "incident_ai", "payload": incident})
+        asyncio.create_task(_call_notifier(incident))
+
+
+async def _call_notifier(incident: dict):
+    try:
+        notify_payload = {
+            "incident_id": incident.get("incident_id", "unknown"),
+            "severity":    incident.get("severity", "medium"),
+            "root_cause":  incident.get("root_cause", "unknown"),
+            "status":      "detected",
+            "message":     incident.get("ai_explanation") or incident.get("summary", ""),
+            "affected_pods": incident.get("affected_pods", []),
+        }
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(f"{NOTIFIER_URL}/notify", json=notify_payload)
+            print(f"[notifier] response {r.status_code}")
+    except Exception as e:
+        print(f"[notifier] call failed: {e}")
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=8), reraise=True)

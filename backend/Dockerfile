@@ -41,6 +41,7 @@ COPY --from=builder /opt/venv /opt/venv
 
 # Copy application code as a package
 COPY backend/ ./backend/
+COPY shared/ ./shared/
 COPY feedback/ ./feedback/
 COPY threshold/ ./threshold/
 COPY alembic/ ./alembic/

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Incident, Graph, Anomaly, SLOData } from '../types';
 
-const API_KEY = process.env.REACT_APP_API_KEY || '';
+const API_KEY = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_KEY) || '';
 
 const client = axios.create({
   baseURL: '',
@@ -129,7 +129,7 @@ export class WebSocketService {
       // In production (nginx), use the same host which proxies /ws/ to backend.
       const isDev = window.location.port === '3000';
       const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      const host  = isDev ? 'localhost:8080' : window.location.host;
+      const host  = isDev ? 'localhost:8000' : window.location.host;
       const wsUrl = `${proto}://${host}/ws/live?api_key=koral-dev-api-key-2024`;
       this.ws = new WebSocket(wsUrl);
       this.ws.onopen  = () => { console.log('[KORAL] WS connected to', wsUrl); this.onOpenCb?.(); };

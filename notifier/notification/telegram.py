@@ -7,13 +7,19 @@ logger = logging.getLogger(__name__)
 
 def format_telegram_message(data: dict) -> str:
     """Format a notification dict into a Telegram-friendly message."""
-    severity = data.get("severity", "unknown").upper()
-    incident_id = data.get("incident_id", "N/A")
-    root_cause = data.get("root_cause", "Unknown")
-    status = data.get("status", "unknown")
-    message = data.get("message", "")
+    def esc(text: str) -> str:
+        """Escape special MarkdownV2 characters."""
+        for ch in r"\_*[]()~`>#+-=|{}.!":
+            text = text.replace(ch, f"\\{ch}")
+        return text
+
+    severity = esc(data.get("severity", "unknown").upper())
+    incident_id = esc(data.get("incident_id", "N/A"))
+    root_cause = esc(data.get("root_cause", "Unknown"))
+    status = esc(data.get("status", "unknown"))
+    message = esc(data.get("message", ""))
     pods = data.get("affected_pods", [])
-    pods_str = ", ".join(pods[:5]) if pods else "none"
+    pods_str = esc(", ".join(pods[:5]) if pods else "none")
 
     lines = [
         f"🚨 *KORAL Alert — {severity}*",
@@ -38,7 +44,7 @@ async def send_telegram_alert(bot_token: str, chat_id: str, message: str) -> boo
     payload = {
         "chat_id": chat_id,
         "text": message,
-        "parse_mode": "Markdown",
+        "parse_mode": "MarkdownV2",
     }
 
     try:
