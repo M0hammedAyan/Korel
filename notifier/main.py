@@ -38,6 +38,9 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", os.getenv("SLACK_WEBHOOK", ""))
 SMTP_HOST = os.getenv("SMTP_HOST", "localhost")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "1025"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASS = os.getenv("SMTP_PASS", "")
+SMTP_TLS = os.getenv("SMTP_TLS", "false").lower() == "true"
 NOTIFICATION_EMAIL = os.getenv("NOTIFICATION_EMAIL", "koral@example.com")
 NOTIFICATION_RECIPIENTS = os.getenv("NOTIFICATION_RECIPIENTS", "admin@example.com").split(",")
 DISABLE_EMAIL = os.getenv("DISABLE_EMAIL", "true").lower() == "true"
@@ -80,7 +83,7 @@ async def send_email_notification(notification: Notification) -> bool:
         return True
     
     try:
-        subject = f"[KORAL] {notification.severity.upper()} - {notification.root_cause}: {notification.status}"
+        subject = f"[KORAL ALERT] {notification.severity.upper()} — {notification.affected_pods[0] if notification.affected_pods else 'unknown'}: {notification.root_cause}"
         
         html_body = f"""
         <html>
@@ -109,6 +112,10 @@ async def send_email_notification(notification: Notification) -> bool:
         msg.attach(MIMEText(html_body, "html"))
         
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            if SMTP_TLS:
+                server.starttls()
+            if SMTP_USER and SMTP_PASS:
+                server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(NOTIFICATION_EMAIL, NOTIFICATION_RECIPIENTS, msg.as_string())
         
         logger.info(f"Sent email notification for {notification.incident_id}")

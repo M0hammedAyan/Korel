@@ -245,6 +245,11 @@ export const Dashboard: React.FC = () => {
                     <div className="incident-info">
                       <div className="incident-name">{inc.affected_pods?.[0] || inc.namespace || 'System'}</div>
                       <div className="incident-detail">{inc.summary || inc.namespace}</div>
+                      {inc.ai_explanation && (
+                        <div className="incident-ai-explanation" style={{ fontSize: '11px', color: '#a0aec0', marginTop: '3px', fontStyle: 'italic' }}>
+                          🤖 {inc.ai_explanation}
+                        </div>
+                      )}
                     </div>
                     <div className="incident-meta">
                       <span className="incident-badge" style={{ backgroundColor: severityColor(inc.severity) + '20', color: severityColor(inc.severity) }}>

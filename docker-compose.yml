@@ -90,8 +90,14 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
-  # ── CPU Agent ────────────────────────────────────────────────────
+  # ── CPU Agent ────────────────────────────────────────────
   cpu-agent:
     build:
       context: ./agents
@@ -303,7 +309,7 @@ services:
     environment:
       BACKEND_URL:      http://backend:8000
       AI_ENGINE_URL:    http://ai-engine:8006
-      REMEDIATION_ENABLED: ${REMEDIATION_ENABLED:-false}
+      REMEDIATION_ENABLED: ${REMEDIATION_ENABLED:-true}
       REMEDIATION_TIMEOUT: ${REMEDIATION_TIMEOUT_SECONDS:-300}
     depends_on:
       backend:
@@ -360,7 +366,7 @@ services:
       REMEDIATION_PLANNER_URL:  http://remediation-planner:8007
       REMEDIATION_TIMEOUT_SECONDS: ${REMEDIATION_TIMEOUT_SECONDS:-300}
       REMEDIATION_MAX_PODS_PER_FIX: ${REMEDIATION_MAX_PODS_PER_FIX:-5}
-      DRY_RUN:                  ${DRY_RUN:-true}
+      DRY_RUN:                  ${DRY_RUN:-false}
       NAMESPACE:                ${NAMESPACE:-koral-system}
     depends_on:
       backend:
@@ -406,6 +412,9 @@ services:
       SLACK_WEBHOOK:           ${SLACK_WEBHOOK:-}
       SMTP_HOST:               ${SMTP_HOST:-localhost}
       SMTP_PORT:               ${SMTP_PORT:-1025}
+      SMTP_USER:               ${SMTP_USER:-}
+      SMTP_PASS:               ${SMTP_PASS:-}
+      SMTP_TLS:                ${SMTP_TLS:-false}
       NOTIFICATION_EMAIL:      ${NOTIFICATION_EMAIL:-koral@example.com}
       NOTIFICATION_RECIPIENTS: ${NOTIFICATION_RECIPIENTS:-admin@example.com}
       DISABLE_EMAIL:           ${DISABLE_EMAIL:-true}
