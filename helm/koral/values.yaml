@@ -268,7 +268,11 @@ notifier:
   env:
     disableEmail: "true"
     disableTelegram: "true"
-    disableSlack: "true"
+    smtpHost: smtp.gmail.com
+    smtpPort: "587"
+    smtpTls: "true"
+    notificationEmail: ""
+    notificationRecipients: ""
 
 # ── Frontend ─────────────────────────────────────────────────────────
 frontend:
@@ -424,4 +428,7 @@ secrets:
   anthropicApiKey: ""
   smtpUser: ""
   smtpPass: ""
-  slackWebhookUrl: ""
+  telegramBotToken: ""
+  telegramChatId: ""
+  notificationEmail: ""
+  notificationRecipients: ""

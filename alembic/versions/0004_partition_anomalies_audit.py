@@ -139,9 +139,20 @@ def upgrade() -> None:
     op.execute("CREATE INDEX ix_audit_event_type ON audit (event_type);")
     op.execute("CREATE INDEX ix_audit_target ON audit (target);")
 
-    # Step 9: Reset sequences
-    op.execute("SELECT setval('anomalies_id_seq', COALESCE((SELECT MAX(id) FROM anomalies), 1));")
-    op.execute("SELECT setval('audit_id_seq', COALESCE((SELECT MAX(id) FROM audit), 1));")
+    # Step 9: Reset sequences when the legacy sequence survived the table swap.
+    # Some existing databases used integer IDs without a PostgreSQL sequence.
+    op.execute("""
+    DO $$
+    BEGIN
+        IF to_regclass('anomalies_id_seq') IS NOT NULL THEN
+            PERFORM setval('anomalies_id_seq', COALESCE((SELECT MAX(id) FROM anomalies), 1));
+        END IF;
+        IF to_regclass('audit_id_seq') IS NOT NULL THEN
+            PERFORM setval('audit_id_seq', COALESCE((SELECT MAX(id) FROM audit), 1));
+        END IF;
+    END;
+    $$;
+    """)
 
     # Step 10: Create auto-partition function (creates next month's partition automatically)
     op.execute("""

@@ -124,12 +124,11 @@ export class WebSocketService {
 
   private _connect() {
     try {
-      // In dev (npm start), CRA proxy does not support WebSocket.
-      // Connect directly to backend port 8080.
-      // In production (nginx), use the same host which proxies /ws/ to backend.
-      const isDev = window.location.port === '3000';
+      // In dev (Vite), proxy handles HTTP but WS needs direct connection to backend.
+      // Backend Docker container is always on host port 8080.
+      const isDev = ['3000','3001','3002','3003','5173'].includes(window.location.port);
       const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      const host  = isDev ? 'localhost:8000' : window.location.host;
+      const host  = isDev ? 'localhost:8080' : window.location.host;
       const wsUrl = `${proto}://${host}/ws/live?api_key=koral-dev-api-key-2024`;
       this.ws = new WebSocket(wsUrl);
       this.ws.onopen  = () => { console.log('[KORAL] WS connected to', wsUrl); this.onOpenCb?.(); };

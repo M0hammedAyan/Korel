@@ -29,7 +29,7 @@ This document maps out the static and runtime dependencies across all microservi
        │
        ├──► [ Verification Engine (8010) ] ─► [ Prometheus (9090) ]
        │
-       └──► [ Notifier (8011) ] ────────────► [ Telegram API / Slack Webhook / SMTP ]
+       └──► [ Notifier (8011) ] ────────────► [ Telegram API / SMTP ]
 
 [ Metric Agents (CPU:8001, Mem:8002, Storage:8003, Log:8004) ]
        │
@@ -69,7 +69,7 @@ This document maps out the static and runtime dependencies across all microservi
 | Sandbox Executor | Kubernetes Cluster | Subprocess / CLI | Execute allowlisted `kubectl` commands | `sandbox-executor/main.py` |
 | Verification Engine | Prometheus | HTTP :9090 | Query metric baselines & pre/post values | `verification-engine/main.py` |
 | Notifier | Telegram Bot API | HTTPS :443 | Send Telegram alerts | `notifier/notification/telegram.py` |
-| Notifier | Slack Webhook | HTTPS :443 | Send Slack webhook alerts | `notifier/backend/slack_notify.py` |
+| Notifier | Telegram / SMTP | HTTPS / SMTP | Send incident alerts | `notifier/main.py` |
 
 ---
 

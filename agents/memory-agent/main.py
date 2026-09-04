@@ -10,8 +10,14 @@ from base_agent import BaseAgent
 PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
 NAMESPACE = os.getenv("NAMESPACE", "koral-system")
 POD_NAME = os.getenv("POD_NAME", "memory-agent")
+METRICS_RUNTIME = os.getenv("METRICS_RUNTIME", "kubernetes")
+ALLOW_SYNTHETIC_METRICS = os.getenv("ALLOW_SYNTHETIC_METRICS", "false").lower() == "true"
 
-QUERY = f'sum(container_memory_working_set_bytes{{namespace="{NAMESPACE}"}}) by (pod)'
+QUERY = (
+    f'sum(container_memory_working_set_bytes{{namespace="{NAMESPACE}"}}) by (pod)'
+    if METRICS_RUNTIME == "kubernetes"
+    else 'sum(container_memory_working_set_bytes{container_label_com_docker_compose_service="memory-agent",image!=""})'
+)
 
 
 class MemoryAgent(BaseAgent):
@@ -43,6 +49,8 @@ class MemoryAgent(BaseAgent):
             pass
 
         # fallback synthetic memory usage (MB)
+        if not ALLOW_SYNTHETIC_METRICS:
+            raise RuntimeError("real memory metrics unavailable and synthetic metrics are disabled")
         setattr(self, "_synthetic_mode", True)
         now = asyncio.get_event_loop().time()
         base = getattr(self, "_syn_base", None)

@@ -18,7 +18,7 @@
                                     [Verification Engine]
                                           |
                                           v
-                                    [Notifier] -> Slack/Email/Telegram
+                                    [Notifier] -> Email/Telegram
 ```
 
 ## Data Flow
@@ -31,7 +31,7 @@
 6. Approval Engine manages human approval workflow
 7. Sandbox Executor runs approved fix commands safely
 8. Verification Engine checks Prometheus metrics pre/post fix
-9. Notifier sends results via Slack/Email/Telegram
+9. Notifier sends results via Email/Telegram
 10. All actions logged to audit table
 
 ## Service Communication

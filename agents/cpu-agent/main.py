@@ -10,15 +10,21 @@ from base_agent import BaseAgent
 PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
 NAMESPACE = os.getenv("NAMESPACE", "koral-system")
 POD_NAME = os.getenv("POD_NAME", "cpu-agent")
+METRICS_RUNTIME = os.getenv("METRICS_RUNTIME", "kubernetes")
+ALLOW_SYNTHETIC_METRICS = os.getenv("ALLOW_SYNTHETIC_METRICS", "false").lower() == "true"
 
-QUERY = f'sum(rate(container_cpu_usage_seconds_total{{namespace="{NAMESPACE}"}}[1m])) by (pod)'
+QUERY = (
+    f'sum(rate(container_cpu_usage_seconds_total{{namespace="{NAMESPACE}"}}[1m])) by (pod)'
+    if METRICS_RUNTIME == "kubernetes"
+    else 'sum(rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service="cpu-agent",image!=""}[1m]))'
+)
 
 
 class CpuAgent(BaseAgent):
     def __init__(self):
         super().__init__(metric="cpu", pod=POD_NAME, unit="percent")
         # Prometheus metrics
-        self.create_gauge("cpu_usage_percent", "Synthetic CPU usage percent")
+        self.create_gauge("cpu_usage_percent", "CPU usage percent")
         self.create_gauge("cpu_anomaly_score", "CPU anomaly score (z)")
 
     def on_measure(self, value: float, z: float, payload: dict):
@@ -40,6 +46,8 @@ class CpuAgent(BaseAgent):
             pass
 
         # fallback: synthetic fluctuating CPU for demo
+        if not ALLOW_SYNTHETIC_METRICS:
+            raise RuntimeError("real CPU metrics unavailable and synthetic metrics are disabled")
         setattr(self, "_synthetic_mode", True)
         now = asyncio.get_event_loop().time()
         base = getattr(self, "_syn_base", None)

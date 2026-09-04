@@ -156,5 +156,5 @@
 - `POST /verify` - Asynchronously waits up to 60 seconds (configurable), scrapes Prometheus, calculates `z_score_delta`, returns `resolved` or `improving`.
 
 ### Notifier (`:8011`)
-- `POST /notify` - Dispatches messages sequentially to SMTP, Telegram, Slack.
+- `POST /notify` - Dispatches messages sequentially to SMTP and Telegram.
 - `POST /test/telegram` - Debugging route to trace connection path to Telegram APIs.

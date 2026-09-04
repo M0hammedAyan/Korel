@@ -10,15 +10,21 @@ from base_agent import BaseAgent
 PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
 NAMESPACE = os.getenv("NAMESPACE", "koral-system")
 POD_NAME = os.getenv("POD_NAME", "storage-agent")
+METRICS_RUNTIME = os.getenv("METRICS_RUNTIME", "kubernetes")
+ALLOW_SYNTHETIC_METRICS = os.getenv("ALLOW_SYNTHETIC_METRICS", "false").lower() == "true"
 
-QUERY = f'sum(rate(container_fs_writes_bytes_total{{namespace="{NAMESPACE}"}}[1m])) by (pod)'
+QUERY = (
+    f'sum(rate(container_fs_writes_bytes_total{{namespace="{NAMESPACE}"}}[1m])) by (pod)'
+    if METRICS_RUNTIME == "kubernetes"
+    else 'sum(rate(container_fs_writes_bytes_total{container_label_com_docker_compose_service="storage-agent",image!=""}[1m]))'
+)
 
 
 class StorageAgent(BaseAgent):
     def __init__(self):
         super().__init__(metric="storage", pod=POD_NAME, unit="KB/s")
         # Prometheus metrics
-        self.create_gauge("storage_usage_percent", "Synthetic storage usage percent")
+        self.create_gauge("storage_usage_percent", "Storage I/O usage percent")
         self.create_gauge("disk_io_rate", "Disk IO rate KB/s")
         self.max_io_kb = float(os.getenv("MAX_IO_KB", str(1024 * 1024)))
 
@@ -42,6 +48,8 @@ class StorageAgent(BaseAgent):
             pass
 
         # synthetic KB/s
+        if not ALLOW_SYNTHETIC_METRICS:
+            raise RuntimeError("real storage metrics unavailable and synthetic metrics are disabled")
         setattr(self, "_synthetic_mode", True)
         now = asyncio.get_event_loop().time()
         base = getattr(self, "_syn_base", None)

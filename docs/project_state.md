@@ -24,7 +24,7 @@ Detect -> Correlate -> Plan -> Approve -> Execute -> Verify -> Audit -> Alert
 | Approval Engine | 85% | Feature Complete |
 | Sandbox Executor | 80% | Functional |
 | Verification Engine | 80% | Functional |
-| Notifier (Slack/Email/Telegram) | 85% | Feature Complete |
+| Notifier (Email/Telegram) | 85% | Feature Complete |
 | Agents (CPU/Memory/Log/Storage) | 75% | Functional |
 | ML/Isolation Forest | 90% | Feature Complete |
 | Database Layer | 85% | Feature Complete |

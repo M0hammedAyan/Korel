@@ -136,7 +136,6 @@ notifier:
   env:
     disableEmail: "false"
     disableTelegram: "false"
-    disableSlack: "false"
 
 frontend:
   replicaCount: 2

@@ -20,6 +20,8 @@ x-agent-common: &agent-common
     PROMETHEUS_URL:   ${PROMETHEUS_URL:-http://prometheus:9090}
     Z_THRESHOLD:      ${Z_THRESHOLD:-2.5}
     POLL_INTERVAL:    ${POLL_INTERVAL:-10}
+    METRICS_RUNTIME:  kubernetes
+    ALLOW_SYNTHETIC_METRICS: ${ALLOW_SYNTHETIC_METRICS:-false}
     API_KEY:          ${API_KEY:-dev-api-key}
 
 services:
@@ -388,14 +390,12 @@ services:
     environment:
       TELEGRAM_BOT_TOKEN:        ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_CHAT_ID:          ${TELEGRAM_CHAT_ID:-}
-      SLACK_WEBHOOK:             ${SLACK_WEBHOOK:-}
       SMTP_HOST:                 ${SMTP_HOST:-localhost}
       SMTP_PORT:                 ${SMTP_PORT:-1025}
       NOTIFICATION_EMAIL:        ${NOTIFICATION_EMAIL:-koral@example.com}
       NOTIFICATION_RECIPIENTS:   ${NOTIFICATION_RECIPIENTS:-admin@example.com}
       DISABLE_EMAIL:             ${DISABLE_EMAIL:-true}
       DISABLE_TELEGRAM:          ${DISABLE_TELEGRAM:-true}
-      DISABLE_SLACK:             ${DISABLE_SLACK:-true}
     depends_on:
       backend:
         condition: service_healthy

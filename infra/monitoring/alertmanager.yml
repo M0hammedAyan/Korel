@@ -9,23 +9,11 @@ route:
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 3h
-  receiver: slack-default
+  receiver: null-receiver
   routes:
-    - match:
-        severity: critical
-      receiver: critical-all
-      continue: true
 
 receivers:
-  - name: slack-default
-    webhook_configs:
-      - url: "http://notifier:8011/alertmanager-webhook"
-        send_resolved: true
-
-  - name: critical-all
-    webhook_configs:
-      - url: "http://notifier:8011/alertmanager-webhook"
-        send_resolved: true
+  - name: null-receiver
 
 inhibit_rules:
   - source_match:

@@ -54,6 +54,10 @@ spec:
               value: {{ $ns }}
             - name: PROMETHEUS_URL
               value: "http://prometheus:9090"
+            - name: METRICS_RUNTIME
+              value: "kubernetes"
+            - name: ALLOW_SYNTHETIC_METRICS
+              value: "false"
             - name: Z_THRESHOLD
               value: {{ $zThreshold | quote }}
             - name: POLL_INTERVAL

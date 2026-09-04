@@ -1,6 +1,5 @@
 """
-KORAL Notifier - Multi-channel notification service
-Sends alerts via Telegram, Email, and Slack
+KORAL Notifier - Email and Telegram notification service
 """
 import os
 import json
@@ -15,7 +14,6 @@ from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel
 import sys
 from notification.telegram import send_telegram_alert, format_telegram_message
-from backend.slack_notify import send_slack_alert
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 # Configure logging
@@ -35,9 +33,8 @@ app = FastAPI(
 # ── Configuration ──────────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
-SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", os.getenv("SLACK_WEBHOOK", ""))
 SMTP_HOST = os.getenv("SMTP_HOST", "localhost")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "1025"))
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASS = os.getenv("SMTP_PASS", "")
 SMTP_TLS = os.getenv("SMTP_TLS", "false").lower() == "true"
@@ -45,7 +42,6 @@ NOTIFICATION_EMAIL = os.getenv("NOTIFICATION_EMAIL", "koral@example.com")
 NOTIFICATION_RECIPIENTS = os.getenv("NOTIFICATION_RECIPIENTS", "admin@example.com").split(",")
 DISABLE_EMAIL = os.getenv("DISABLE_EMAIL", "true").lower() == "true"
 DISABLE_TELEGRAM = os.getenv("DISABLE_TELEGRAM", "true").lower() == "true"
-DISABLE_SLACK = os.getenv("DISABLE_SLACK", "true").lower() == "true"
 
 # ── Models ─────────────────────────────────────────────────────────
 class Notification(BaseModel):
@@ -72,7 +68,6 @@ def health():
         "version": "1.0.0",
         "telegram_enabled": not DISABLE_TELEGRAM and bool(TELEGRAM_BOT_TOKEN),
         "email_enabled": not DISABLE_EMAIL,
-        "slack_enabled": not DISABLE_SLACK and bool(SLACK_WEBHOOK_URL)
     }
 
 # ── Send Email Notification ──────────────────────────────────────
@@ -138,25 +133,6 @@ async def send_telegram_notification(notification: Notification) -> bool:
         logger.error(f"Failed to send Telegram: {e}")
         return False
 
-# ── Send Slack Notification ──────────────────────────────────────
-async def send_slack_notification(notification: Notification) -> bool:
-    """Send Slack notification"""
-    if DISABLE_SLACK or not SLACK_WEBHOOK_URL:
-        logger.info("[SLACK DISABLED] Would send to Slack")
-        return True
-
-    try:
-        return send_slack_alert(
-            service=notification.service or "backend",
-            issue=notification.issue or notification.message,
-            root_cause=notification.root_cause,
-            suggested_fix=notification.suggested_fix or notification.message,
-            confidence=notification.confidence if notification.confidence is not None else notification.severity,
-        )
-    except Exception as e:
-        logger.error(f"Failed to send Slack: {e}")
-        return False
-
 # ── Telegram Test ───────────────────────────────────────────────
 @app.post("/test/telegram")
 async def test_telegram():
@@ -185,7 +161,6 @@ async def send_notification(notification: Notification):
     results = {
         "incident_id": notification.incident_id,
         "email": await send_email_notification(notification),
-        "slack": await send_slack_notification(notification),
         "telegram": await send_telegram_notification(notification)
     }
     

@@ -13,6 +13,7 @@ from starlette.responses import PlainTextResponse, JSONResponse
 import uvicorn
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
+API_KEY = os.getenv("API_KEY", "")
 Z_THRESHOLD = float(os.getenv("Z_THRESHOLD", "2.5"))
 POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "10"))
 NAMESPACE = os.getenv("NAMESPACE", "koral-system")
@@ -129,7 +130,8 @@ class BaseAgent:
 
                 async with httpx.AsyncClient(timeout=5) as client:
                     try:
-                        await client.post(f"{BACKEND_URL}/anomalies", json=payload)
+                        headers = {"X-API-Key": API_KEY} if API_KEY else {}
+                        await client.post(f"{BACKEND_URL}/anomalies", json=payload, headers=headers)
                     except Exception as e:
                         print(f"[{self.metric}] backend post error: {e}")
             except Exception as e:

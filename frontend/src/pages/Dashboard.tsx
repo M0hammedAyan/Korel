@@ -39,6 +39,11 @@ const formatTimestamp = (ts: number) => {
   return `${Math.floor(diff / 3600)}h ago`;
 };
 
+const formatXAxis = (ts: number) => {
+  const d = new Date(ts * 1000);
+  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
+};
+
 export const Dashboard: React.FC = () => {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
@@ -123,8 +128,8 @@ export const Dashboard: React.FC = () => {
   const latestMem = anomalies.filter(a => a?.metric === 'memory').slice(-1)[0];
   const latestStor = anomalies.filter(a => a?.metric === 'storage').slice(-1)[0];
   const cpuVal = latestCpu ? parseFloat(latestCpu.value.toFixed(1)) : 0;
-  const memVal = latestMem ? parseFloat(latestMem.value.toFixed(0)) : 0;
-  const storVal = latestStor ? parseFloat(latestStor.value.toFixed(0)) : 0;
+  const memVal = latestMem ? parseFloat(latestMem.value.toFixed(0)) : 0;   // raw MB
+  const storVal = latestStor ? parseFloat(latestStor.value.toFixed(1)) : 0; // raw KB/s
 
   const severityColor = (sev: string) => {
     switch (sev) {
@@ -173,11 +178,11 @@ export const Dashboard: React.FC = () => {
               <ResponsiveContainer width="100%" height={180}>
                 <LineChart data={cpuData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#2d3748" />
-                  <XAxis dataKey="timestamp" stroke="#718096" tick={{ fontSize: 11 }} />
+                  <XAxis dataKey="timestamp" stroke="#718096" tick={{ fontSize: 10 }} tickFormatter={formatXAxis} interval="preserveStartEnd" />
                   <YAxis stroke="#718096" tick={{ fontSize: 11 }} />
                   <Tooltip 
                     contentStyle={{ backgroundColor: '#1a202c', border: '1px solid #4a5568', borderRadius: '6px', color: '#e2e8f0', fontSize: '12px' }} 
-                    formatter={(value: any) => [`${value}%`, 'CPU']}
+                    formatter={(value: any) => [`${value}%`, 'CPU Usage']}
                   />
                   <Line type="monotone" dataKey="value" stroke="#3b82f6" dot={false} strokeWidth={2} />
                 </LineChart>
@@ -188,40 +193,40 @@ export const Dashboard: React.FC = () => {
             <div className="graph-card">
               <div className="graph-header">
                 <span className="graph-title">Memory Usage</span>
-                <span className="graph-value" style={{ color: memVal > 80 ? '#ef4444' : memVal > 60 ? '#f97316' : '#10b981' }}>
-                  {memVal}%
+                <span className="graph-value" style={{ color: memVal > 12000 ? '#ef4444' : memVal > 8000 ? '#f97316' : '#10b981' }}>
+                  {memVal} MB
                 </span>
               </div>
               <ResponsiveContainer width="100%" height={180}>
                 <LineChart data={memoryData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#2d3748" />
-                  <XAxis dataKey="timestamp" stroke="#718096" tick={{ fontSize: 11 }} />
+                  <XAxis dataKey="timestamp" stroke="#718096" tick={{ fontSize: 10 }} tickFormatter={formatXAxis} interval="preserveStartEnd" />
                   <YAxis stroke="#718096" tick={{ fontSize: 11 }} />
                   <Tooltip 
                     contentStyle={{ backgroundColor: '#1a202c', border: '1px solid #4a5568', borderRadius: '6px', color: '#e2e8f0', fontSize: '12px' }} 
-                    formatter={(value: any) => [`${value}%`, 'Memory']}
+                    formatter={(value: any) => [`${value} MB`, 'Memory']}
                   />
                   <Line type="monotone" dataKey="value" stroke="#8b5cf6" dot={false} strokeWidth={2} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
 
-            {/* STORAGE LOGS */}
+            {/* STORAGE I/O */}
             <div className="graph-card">
               <div className="graph-header">
-                <span className="graph-title">Storage Logs</span>
-                <span className="graph-value" style={{ color: storVal > 80 ? '#ef4444' : storVal > 60 ? '#f97316' : '#10b981' }}>
-                  {storVal}%
+                <span className="graph-title">Storage I/O</span>
+                <span className="graph-value" style={{ color: storVal > 500 ? '#ef4444' : storVal > 300 ? '#f97316' : '#10b981' }}>
+                  {storVal} KB/s
                 </span>
               </div>
               <ResponsiveContainer width="100%" height={180}>
                 <LineChart data={storageData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#2d3748" />
-                  <XAxis dataKey="timestamp" stroke="#718096" tick={{ fontSize: 11 }} />
+                  <XAxis dataKey="timestamp" stroke="#718096" tick={{ fontSize: 10 }} tickFormatter={formatXAxis} interval="preserveStartEnd" />
                   <YAxis stroke="#718096" tick={{ fontSize: 11 }} />
                   <Tooltip 
                     contentStyle={{ backgroundColor: '#1a202c', border: '1px solid #4a5568', borderRadius: '6px', color: '#e2e8f0', fontSize: '12px' }} 
-                    formatter={(value: any) => [`${value}%`, 'Storage']}
+                    formatter={(value: any) => [`${value} KB/s`, 'Storage I/O']}
                   />
                   <Line type="monotone" dataKey="value" stroke="#06b6d4" dot={false} strokeWidth={2} />
                 </LineChart>

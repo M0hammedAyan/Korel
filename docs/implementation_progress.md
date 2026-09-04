@@ -8,7 +8,7 @@
 - [x] Remediation planner dynamic deployment/namespace discovery
 - [x] Audit logging — all major events logged
 - [x] Grafana dashboards — 4 provisioned with correct datasource UID
-- [x] AlertManager — Slack + Email + webhook configured
+- [x] AlertManager — Email/webhook configuration available
 - [x] Multi-pod correlation via /correlate-batch endpoint
 - [x] SLO platform — availability, MTTR, detection latency, remediation success, error budget
 - [x] Integration tests — full backend flow tested

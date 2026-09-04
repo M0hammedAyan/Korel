@@ -107,13 +107,18 @@ KORAL is an autonomous, Kubernetes-native AI observability platform. It ingests 
 
 ### 8. Notifier (`notifier/`)
 - **Port**: 8011
-- **Tech Stack**: Python 3.11, FastAPI, httpx, SMTP, Telegram Bot API, Slack Webhook.
-- **Responsibilities**: Dispatcher for multi-channel notifications (Telegram, Slack, Email) when anomalies or remediation events occur.
+- **Tech Stack**: Python 3.11, FastAPI, httpx, SMTP, Telegram Bot API.
+- **Responsibilities**: Dispatcher for email and Telegram notifications when anomalies or remediation events occur.
 
 ### 9. Edge Metrics Agents (`agents/`)
 - **Ports**: 8001 (CPU), 8002 (Memory), 8003 (Storage), 8004 (Log)
 - **Tech Stack**: Python 3.11, FastAPI, Prometheus Client, httpx.
-- **Responsibilities**: Collect high-frequency telemetry from container metrics/Prometheus; automatically fall back to synthetic metric generation if cluster metrics are unavailable.
+- **Responsibilities**:
+- CPU agent: reads container CPU utilization and calculates CPU anomaly scores.
+- Memory agent: reads container working-set memory and calculates memory pressure anomalies.
+- Storage agent: reads container filesystem write I/O and calculates storage anomalies.
+- Log agent: reads Fluent Bit/Fluentd error activity and calculates log-error anomalies.
+- All agents publish `/metrics` for Prometheus and post normalized observations to the backend. Synthetic metrics are disabled by default and must be explicitly enabled for demos.
 
 ---
 

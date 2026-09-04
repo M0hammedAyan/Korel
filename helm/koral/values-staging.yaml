@@ -53,7 +53,6 @@ verificationEngine:
 notifier:
   enabled: true
   env:
-    disableSlack: "false"
 
 postgresql:
   storage:

@@ -259,17 +259,46 @@ spec:
           ports:
             - containerPort: 8011
           env:
-            - name: SLACK_WEBHOOK
+            - name: TELEGRAM_BOT_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: koral-secrets
-                  key: SLACK_WEBHOOK_URL
+                  key: TELEGRAM_BOT_TOKEN
+            - name: TELEGRAM_CHAT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: koral-secrets
+                  key: TELEGRAM_CHAT_ID
+            - name: SMTP_HOST
+              value: {{ .Values.notifier.env.smtpHost | quote }}
+            - name: SMTP_PORT
+              value: {{ .Values.notifier.env.smtpPort | quote }}
+            - name: SMTP_TLS
+              value: {{ .Values.notifier.env.smtpTls | quote }}
+            - name: SMTP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: koral-secrets
+                  key: SMTP_USER
+            - name: SMTP_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: koral-secrets
+                  key: SMTP_PASS
+            - name: NOTIFICATION_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: koral-secrets
+                  key: NOTIFICATION_EMAIL
+            - name: NOTIFICATION_RECIPIENTS
+              valueFrom:
+                secretKeyRef:
+                  name: koral-secrets
+                  key: NOTIFICATION_RECIPIENTS
             - name: DISABLE_EMAIL
               value: {{ .Values.notifier.env.disableEmail | quote }}
             - name: DISABLE_TELEGRAM
               value: {{ .Values.notifier.env.disableTelegram | quote }}
-            - name: DISABLE_SLACK
-              value: {{ .Values.notifier.env.disableSlack | quote }}
           resources:
             {{- toYaml .Values.notifier.resources | nindent 12 }}
 ---

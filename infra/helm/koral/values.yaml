@@ -211,33 +211,23 @@ alertmanager:
   enabled: true
   config:
     global:
-      slack_api_url: "${SLACK_WEBHOOK_URL}"
       pagerduty_url: "https://events.pagerduty.com/v2/enqueue"
     route:
       group_by: ['alertname', 'cluster', 'service']
       group_wait: 30s
       group_interval: 5m
       repeat_interval: 4h
-      receiver: 'default'
+      receiver: 'null'
       routes:
         - match:
             severity: critical
           receiver: critical
           continue: true
-        - match:
-            severity: warning
-          receiver: warning
     receivers:
-      - name: 'default'
-        slack_configs:
-          - channel: '#koral-alerts'
-            title: 'Alert: {{ .GroupLabels.alertname }}'
+      - name: 'null'
       - name: 'critical'
         pagerduty_configs:
           - service_key: '${PAGERDUTY_SERVICE_KEY}'
-      - name: 'warning'
-        slack_configs:
-          - channel: '#koral-warnings'
 
 # Environment variables
 env:

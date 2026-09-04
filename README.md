@@ -474,10 +474,10 @@ If port 3000, 8080, or 9090 is already in use:
 
 ```bash
 # Change frontend port
-FRONTEND_PORT=3002 docker compose up -d
+FRONTEND_PORT=3000 docker compose up -d
 
 # Or edit .env
-FRONTEND_PORT=3002
+FRONTEND_PORT=3000
 ```
 
 ### API returns 401

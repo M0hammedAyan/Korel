@@ -12,6 +12,7 @@ FLUENTD_PORT = os.getenv("FLUENTD_PORT", "9880")
 NAMESPACE = os.getenv("NAMESPACE", "koral-system")
 POD_NAME = os.getenv("POD_NAME", "log-agent")
 PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
+ALLOW_SYNTHETIC_METRICS = os.getenv("ALLOW_SYNTHETIC_METRICS", "false").lower() == "true"
 
 QUERY = 'sum(increase(fluentd_output_status_emit_records_total{tag=~"koral.*"}[1m]))'
 
@@ -55,6 +56,8 @@ class LogAgent(BaseAgent):
             pass
 
         # final fallback: synthetic log errors
+        if not ALLOW_SYNTHETIC_METRICS:
+            raise RuntimeError("real log metrics unavailable and synthetic metrics are disabled")
         setattr(self, "_synthetic_mode", True)
         now = asyncio.get_event_loop().time()
         base = getattr(self, "_syn_base", None)

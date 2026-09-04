@@ -14,10 +14,13 @@ x-agent-common: &agent-common
       condition: service_started
   environment:
     BACKEND_URL:      http://backend:8000
+    API_KEY:          ${API_KEY:-koral-dev-api-key-2024}
     NAMESPACE:        ${KORAL_NAMESPACE:-koral-system}
     PROMETHEUS_URL:   ${PROMETHEUS_URL:-http://prometheus:9090}
     Z_THRESHOLD:      ${Z_THRESHOLD:-2.5}
     POLL_INTERVAL:    ${POLL_INTERVAL:-10}
+    METRICS_RUNTIME:  ${METRICS_RUNTIME:-compose}
+    ALLOW_SYNTHETIC_METRICS: ${ALLOW_SYNTHETIC_METRICS:-false}
 
 services:
 
@@ -91,7 +94,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -263,7 +266,6 @@ services:
       - '--storage.path=/alertmanager'
       - '--web.listen-address=:9093'
     environment:
-      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
       ALERT_EMAIL:       ${ALERT_EMAIL:-}
       SMTP_HOST:         ${SMTP_HOST:-smtp.gmail.com}
       SMTP_PORT:         ${SMTP_PORT:-587}
@@ -340,7 +342,7 @@ services:
       SMTP_PORT:              ${SMTP_PORT:-1025}
       DISABLE_EMAIL:          ${DISABLE_EMAIL:-true}
       APPROVAL_DB_PATH:       /data/approvals.db
-      DB_TYPE:                ${DB_TYPE:-sqlite}
+      DB_TYPE:                sqlite
       DB_HOST:                ${POSTGRES_HOST:-postgres}
       DB_PORT:                ${POSTGRES_PORT:-5432}
       DB_NAME:                ${POSTGRES_DB:-koral}
@@ -409,7 +411,6 @@ services:
     environment:
       TELEGRAM_BOT_TOKEN:      ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_CHAT_ID:        ${TELEGRAM_CHAT_ID:-}
-      SLACK_WEBHOOK:           ${SLACK_WEBHOOK:-}
       SMTP_HOST:               ${SMTP_HOST:-localhost}
       SMTP_PORT:               ${SMTP_PORT:-1025}
       SMTP_USER:               ${SMTP_USER:-}
@@ -419,7 +420,6 @@ services:
       NOTIFICATION_RECIPIENTS: ${NOTIFICATION_RECIPIENTS:-admin@example.com}
       DISABLE_EMAIL:           ${DISABLE_EMAIL:-true}
       DISABLE_TELEGRAM:        ${DISABLE_TELEGRAM:-true}
-      DISABLE_SLACK:           ${DISABLE_SLACK:-true}
     depends_on:
       backend:
         condition: service_started

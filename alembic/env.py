@@ -1,5 +1,6 @@
 import os
 from logging.config import fileConfig
+from urllib.parse import quote_plus
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
@@ -23,7 +24,19 @@ except Exception:
 
 def get_url():
     # Prefer direct DATABASE_URL env var; otherwise, try alembic.ini substitution
-    return os.environ.get('DATABASE_URL') or os.environ.get('SQLALCHEMY_DATABASE_URL') or config.get_main_option('sqlalchemy.url')
+    direct_url = os.environ.get('DATABASE_URL') or os.environ.get('SQLALCHEMY_DATABASE_URL')
+    if direct_url:
+        return direct_url
+
+    if os.environ.get("DB_TYPE", "sqlite").lower() == "postgres":
+        user = quote_plus(os.environ.get("DB_USER", "postgres"))
+        password = quote_plus(os.environ.get("DB_PASS", ""))
+        host = os.environ.get("DB_HOST", "localhost")
+        port = os.environ.get("DB_PORT", "5432")
+        database = os.environ.get("DB_NAME", "koral")
+        return f"postgresql://{user}:{password}@{host}:{port}/{database}"
+
+    return config.get_main_option('sqlalchemy.url')
 
 
 def run_migrations_offline():
